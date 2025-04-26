@@ -1,10 +1,18 @@
 import torch
+import torch.nn.functional as F
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import os
 from models.superpoint import SuperPointNet
 from models.superglue import SuperGlueNet
+
+#
+
+
+from models.superpoint import SuperPointNet
+from models.superglue import SuperGlueNet
+
 
 def carregar_imagem(caminho):
     img = cv2.imread(caminho, cv2.IMREAD_GRAYSCALE)
@@ -17,9 +25,38 @@ def carregar_imagem(caminho):
 def detectar_keypoints(modelo_superpoint, imagem):
     modelo_superpoint.eval()
     with torch.no_grad():
-        det, desc = modelo_superpoint(imagem)
-        keypoints = torch.nonzero(det.squeeze(0).squeeze(0) > 0.2, as_tuple=False)  # threshold 0.2
-        descritores = desc.squeeze(0).permute(1, 2, 0)[keypoints[:, 0], keypoints[:, 1]]
+        semi, desc = modelo_superpoint(imagem)
+
+        heatmap = F.softmax(semi, dim=1)[:, :-1, :, :]  # Ignora dustbin
+        heatmap = heatmap.squeeze(0)
+
+        num_keypoints = 500
+
+        heatmap_flat = heatmap.view(heatmap.shape[0], -1)
+        scores, indices = torch.topk(heatmap_flat, num_keypoints)
+
+        keypoints = []
+        Hc, Wc = heatmap.shape[1], heatmap.shape[2]
+        for i in range(indices.shape[1]):  # <- Correção aqui!
+            idx = indices[0, i]
+            y = idx // Wc
+            x = idx % Wc
+            keypoints.append([y.item() * 8, x.item() * 8])  # Corrige escala
+
+        keypoints = torch.tensor(keypoints, dtype=torch.float32)
+
+        desc = F.normalize(desc, p=2, dim=1)
+        desc = desc.squeeze(0).permute(1, 2, 0)
+
+        descritores = []
+        for pt in keypoints:
+            y, x = int(pt[0] / 8), int(pt[1] / 8)
+            if y >= desc.shape[0] or x >= desc.shape[1]:
+                continue
+            descritores.append(desc[y, x])
+
+        descritores = torch.stack(descritores)
+
     return keypoints, descritores
 
 def visualizar_matches(img1_np, img2_np, kp1, kp2, matches_idx):
@@ -39,12 +76,17 @@ def visualizar_matches(img1_np, img2_np, kp1, kp2, matches_idx):
     plt.axis('off')
     plt.show()
 
+
 def main():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Usando dispositivo: {device}")
+    print(os.getcwd())
+    # 👉 Adicionar caminho para pesos
+    weights_path = os.path.join(os.getcwd(),'src', 'models', 'weights', 'superpoint_v1.pth')
 
-    # Instanciar modelos
-    superpoint = SuperPointNet().to(device)
+    print(weights_path)
+    # Instanciar modelos já carregando pesos
+    superpoint = SuperPointNet(weights_path=weights_path).to(device)
     superglue = SuperGlueNet().to(device)
 
     # Pasta das imagens
