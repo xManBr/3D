@@ -1,10 +1,19 @@
 # Projeto SuperGlue 3D Reconstrução
 
-Pre-requisito - instalar COLMAP
+Pre-requisito:
+1) Imagens de boa qualidade na pasta ./assets
+2) Instalar COLMAP - https://colmap.github.io/
 
-https://colmap.github.io/
+Execução:
+1) Rodar no terminal-> python src/main.py 
+  Resultado esperado-> Gerar o arquivo ./matches/matches.txt - pontos conincidentes das imagens
+  Resultado obtido-> O resultado esperado.
 
-Processo não finaliza, porque a atapa 5: Gerando mapas de profundidade... requer GPU com CUDA
+2) Executar na linha de comando o arquivo de lote -> lincoln_memorial_statue_semi_auto_colmap_full_pipeline.bat
+  Resultado esperado-> Nuvem de pontos densa 3D.
+  Resultado obtido -> Roda 4 etapas e nuvem esparsa é gerada. O processo não finaliza por erro na atapa 5 - Gerando mapas de profundidade... requer GPU com CUDA
+
+Bibliografia:
 
 [9] COLMAP. Frequently Asked Questions - Available functionality without GPU/CUDA. [Acesso
 em 2025-04-30]. Disponível em: https://colmap.github.io/faq.html.
